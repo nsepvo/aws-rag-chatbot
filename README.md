@@ -1,6 +1,6 @@
 # AWS RAG Chatbot
 
-A fully serverless retrieval-augmented generation (RAG) chatbot built on AWS that answers questions about any of my AWS portfolio projects. README content is chunked, embedded, and stored in DynamoDB, then retrieved by semantic similarity at query time and passed to Claude Haiku as grounding context. Built to gain hands-on experience with Amazon Bedrock, vector embeddings, and retrieval pipelines, and to support my AWS AI Practitioner certification.
+A fully serverless retrieval-augmented generation (RAG) chatbot built on AWS that answers questions about any of my AWS portfolio projects. README content is chunked, embedded, and stored in DynamoDB, then retrieved by semantic similarity at query time and passed to Claude Haiku to generate an output. Built to gain hands-on experience with Amazon Bedrock, vector embeddings, and retrieval pipelines. 
 
 ## Live Demo
 
@@ -43,18 +43,18 @@ A fully serverless retrieval-augmented generation (RAG) chatbot built on AWS tha
 
 ## Design Decisions
 
-- DynamoDB to store vectors - a managed vector database would add meaningful cost for a corpus of roughly 30 chunks. At this scale a full table scan with cosine similarity computed in Lambda is fast, cheap, and removes an entire service from the stack. This is explicitly a scale-dependent decision, not a general one
-- Cosine similarity calculated in Lambda - forced a real understanding of what similarity search actually does rather than treating it as a black box, which was the point of the project
-- Project and section name embedded into the text, not just stored as metadata - the embedding input is formatted as `Project - Section: text`. Storing project identity only as a metadata column means it has zero influence on the vector, so a question naming a project retrieves nothing that knows about that project
-- Explicit project-name pre-filter - embedding the project name raises its influence but guarantees nothing, since cosine similarity is a matter of degree. When a question names a project, the candidate set is hard-filtered to that project first
+- DynamoDB to store vectors - a full table scan with cosine similarity computed in Lambda is fast, cheap, and removes the need for a dedicated vector database. This is explicitly a scale-dependent decision, not a general one
+- Cosine similarity calculated in Lambda - forced a real understanding of what similarity search actually does which provides transparency and can help build trust 
+- Project and section names properly embedded - the embedding input is formatted as `Project - Section: text`. This ensures the project's identity influences the results, as opposed to if it were only a metadata column, to generate  accurate outputs 
+- Explicit project-name pre-filter - embedding the project name raises its influence but guarantees nothing, since cosine similarity measures the degree of relevancy. When a question names a project, the candidate set is hard-filtered to that project first
 - Corpus-level questions bypass similarity search - questions like "list all projects" are not about any one chunk, so top-K retrieval will never return balanced coverage. These are detected and answered from one Overview chunk per project, in a fixed canonical order
 - Hard daily query limit in Lambda - API Gateway throttling caps request rate, not spend. A public endpoint calling Bedrock has an unbounded cost ceiling without an application-level counter. This is fixed using an atomic DynamoDB counter
 - Claude Haiku over larger models - the generation step is summarising retrieved text, not reasoning from scratch. Haiku is the cheapest model that does this well, and cost per query matters on a public endpoint
 
 ## Key Learnings
 
-- Metadata columns do not influence semantic search - each chunk is processed into a list of numbers used to represent its semantic meanings. Semantic similarity is calculated by comparing these lists. The database categorised these chunks using project titles and section headers. The issue with this was that the title did not exist within the chunk itself, so asking "what did you learn from the URL Shortener" returned chunks from other projects that happened to be more semantically similar to the question, because the words "URL Shortener" did not exist anywhere. The fix was to prepend the project and section name to the text before embedding it, so that project identity became part of the meaning rather than a label attached to the outside of it.
-- Relevance is not the same as correctness - two chunks about API Gateway throttling are genuinely similar whether they came from the Serverless Contact Form or the URL shortener.In cases like this, a hard filter is required, so the query Lambda now restricts the candidate set to a single project before similarity search ever runs, unless asked otherwise 
+- Metadata columns do not influence semantic search - each chunk is processed into a list of numbers used to represent its semantic meanings. Semantic similarity is calculated by comparing these lists. The database categorises these chunks using project names and section headers. The issue with this was that the title did not exist within the chunk itself, so asking "what did you learn from the URL Shortener" returned chunks from other projects that happened to be more semantically similar to the question. The fix was to prepend the project and section name to the text before embedding it, so that project identity became part of the meaning rather than a label attached to the outside of it
+- Relevance is not the same as correctness - two chunks about API Gateway throttling are genuinely similar whether they came from the Serverless Contact Form or the URL shortener. In cases like this, a hard filter is required, so the query Lambda now restricts the candidate set to a single project before similarity search even runs, unless asked otherwise 
 - Top-K retrieval cannot answer questions about the whole corpus - "list all my projects" consistently returned three of four, because the top 5 chunks by similarity were never one Overview from each project; they were two chunks from one project and one each from two others. The model was answering correctly from what it received. Corpus-level questions are now detected and routed around similarity search entirely, receiving one Overview chunk per project in a fixed order
 
 ## What I Would Do Next
