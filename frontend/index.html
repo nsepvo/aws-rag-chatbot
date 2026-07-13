@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS Projects RAG Chatbot</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e5e3e0;
+    --text: #1c1b1a;
+    --muted: #78716c;
+    --accent: #c2410c;
+    --accent-hover: #9a3412;
+    --tag-bg: #f5f5f4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 24px 80px;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0 0 32px;
+  }
+
+  .subtitle a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+
+  .subtitle a:hover {
+    border-bottom-color: var(--accent);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  #question {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  #question:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.1);
+  }
+
+  #question::placeholder { color: #a8a29e; }
+
+  button {
+    padding: 12px 22px;
+    font-size: 15px;
+    font-weight: 550;
+    font-family: inherit;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  button:hover { background: var(--accent-hover); }
+  button:active { transform: translateY(1px); }
+
+  #loading {
+    display: none;
+    margin-top: 24px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  #loading::after {
+    content: "";
+    animation: dots 1.4s steps(4, end) infinite;
+  }
+
+  @keyframes dots {
+    0%   { content: ""; }
+    25%  { content: "."; }
+    50%  { content: ".."; }
+    75%  { content: "..."; }
+  }
+
+  #answer {
+    display: none;
+    margin-top: 24px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+  }
+
+  #answer p { margin: 0 0 12px; }
+  #answer p:last-child { margin-bottom: 0; }
+
+  #answer ul, #answer ol {
+    margin: 0 0 12px;
+    padding-left: 22px;
+  }
+
+  #answer li { margin-bottom: 6px; }
+  #answer li:last-child { margin-bottom: 0; }
+
+  #answer strong { font-weight: 600; }
+
+  #answer code {
+    background: var(--tag-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+
+  #answer pre {
+    background: var(--tag-bg);
+    padding: 14px;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+
+  #answer pre code {
+    background: none;
+    padding: 0;
+  }
+
+  #answer h1, #answer h2, #answer h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 18px 0 8px;
+  }
+
+  #answer h1:first-child,
+  #answer h2:first-child,
+  #answer h3:first-child { margin-top: 0; }
+
+  #sources {
+    display: none;
+    margin-top: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .sources-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .source-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .source-tag .project {
+    color: var(--text);
+    font-weight: 550;
+  }
+
+  @media (max-width: 560px) {
+    body { padding: 40px 18px 60px; }
+    .input-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Ask About My AWS Projects</h1>
+<p class="subtitle">
+  A retrieval-augmented chatbot answering questions about the four AWS projects on
+  <a href="https://github.com/nsepvo" target="_blank" rel="noopener">Your Name's GitHub</a>.
+</p>
+
+<div class="input-row">
+  <input type="text" id="question" placeholder="e.g. How did you prevent duplicate short codes?" autocomplete="off">
+  <button onclick="askQuestion()">Ask</button>
+</div>
+
+<div id="loading">Thinking</div>
+<div id="answer"></div>
+<div id="sources"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const API_URL = "https://lhv3npv7a1.execute-api.ap-southeast-2.amazonaws.com/query";
+
+async function askQuestion() {
+  const question = document.getElementById('question').value.trim();
+  if (!question) return;
+
+  const answerDiv = document.getElementById('answer');
+  const sourcesDiv = document.getElementById('sources');
+  const loadingDiv = document.getElementById('loading');
+
+  answerDiv.style.display = 'none';
+  sourcesDiv.style.display = 'none';
+  sourcesDiv.innerHTML = '';
+  loadingDiv.style.display = 'block';
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question })
+    });
+    const data = await response.json();
+
+    loadingDiv.style.display = 'none';
+    answerDiv.style.display = 'block';
+    answerDiv.innerHTML = marked.parse(data.answer);
+
+    if (data.sources && data.sources.length > 0) {
+      const seen = new Set();
+      const label = document.createElement('span');
+      label.className = 'sources-label';
+      label.textContent = 'Sources';
+      sourcesDiv.appendChild(label);
+
+      data.sources.forEach(s => {
+        const key = s.project + '|' + s.section;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const tag = document.createElement('span');
+        tag.className = 'source-tag';
+
+        const project = document.createElement('span');
+        project.className = 'project';
+        project.textContent = s.project;
+
+        tag.appendChild(project);
+        tag.appendChild(document.createTextNode(' · ' + s.section));
+        sourcesDiv.appendChild(tag);
+      });
+
+      sourcesDiv.style.display = 'flex';
+    }
+  } catch (error) {
+    loadingDiv.style.display = 'none';
+    answerDiv.style.display = 'block';
+    answerDiv.textContent = 'Error: could not reach the chatbot. Please try again.';
+  }
+}
+
+document.getElementById('question').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') askQuestion();
+});
+</script>
+
+</body>
+</html>
