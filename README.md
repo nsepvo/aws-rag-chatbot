@@ -4,7 +4,7 @@ A fully serverless retrieval-augmented generation (RAG) chatbot built on AWS tha
 
 ## Live Demo
 
-[http://your-bucket-name.s3-website-ap-southeast-2.amazonaws.com/](http://rag-chatbot-frontend-nevenspooner.s3-website-ap-southeast-2.amazonaws.com/)
+[http://rag-chatbot-frontend-nevenspooner.s3-website-ap-southeast-2.amazonaws.com/](http://rag-chatbot-frontend-nevenspooner.s3-website-ap-southeast-2.amazonaws.com/)
 
 ## Architecture
 
